@@ -4,13 +4,19 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.util.Scanner;
-
 import java.awt.BorderLayout;
 import javax.swing.JFrame;
 import javax.swing.JOptionPane;
 import javax.swing.JScrollPane;
-import javax.swing.JTextArea;
 import javax.swing.JTextField;
+import javax.swing.JTextPane;
+import javax.swing.*;
+import java.awt.Color;
+import javax.swing.text.Style;
+import javax.swing.text.StyleConstants;
+import javax.swing.text.StyledDocument;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 /**
  * A simple Swing-based client for the chat server. Graphically it is a frame
@@ -33,7 +39,8 @@ public class ChatClient {
     PrintWriter out;
     JFrame frame = new JFrame("Chatter");
     JTextField textField = new JTextField(50);
-    JTextArea messageArea = new JTextArea(16, 50);
+    JTextPane messageArea = new JTextPane(); 
+    StyledDocument doc = messageArea.getStyledDocument();
 
     /**
      * Constructs the client by laying out the GUI and registering a listener with
@@ -45,8 +52,13 @@ public class ChatClient {
     public ChatClient(String serverAddress) {
         this.serverAddress = serverAddress;
 
+        // Set up styles
+        setupStyles();
+
         textField.setEditable(false);
         messageArea.setEditable(false);
+        messageArea.setBackground(Color.LIGHT_GRAY);
+
         frame.getContentPane().add(textField, BorderLayout.SOUTH);
         frame.getContentPane().add(new JScrollPane(messageArea), BorderLayout.CENTER);
         frame.pack();
@@ -58,6 +70,42 @@ public class ChatClient {
                 textField.setText("");
             }
         });
+    }
+
+    private void setupStyles() {
+        // Style for system messages (blue and bold)
+        Style systemStyle = messageArea.addStyle("System", null);
+        StyleConstants.setForeground(systemStyle, Color.BLUE);
+        StyleConstants.setBold(systemStyle, true);
+
+        // Style for regular messages (black)
+        Style messageStyle = messageArea.addStyle("Message", null);
+        StyleConstants.setForeground(messageStyle, Color.BLACK);
+
+        // Style for user messages (white, bold)
+        Style userMessageStyle = messageArea.addStyle("UserMessage", null);
+        StyleConstants.setForeground(userMessageStyle, Color.WHITE);
+        StyleConstants.setBold(userMessageStyle, true);
+
+        // Style for SUBMITNAME messages (green)
+        Style submitNameStyle = messageArea.addStyle("SubmitName", null);
+        StyleConstants.setForeground(submitNameStyle, Color.GREEN);
+        StyleConstants.setBold(submitNameStyle, true);
+
+        // Style for NAMEACCEPTED messages (purple)
+        Style nameAcceptedStyle = messageArea.addStyle("NameAccepted", null);
+        StyleConstants.setForeground(nameAcceptedStyle, new Color(128, 0, 128)); 
+        StyleConstants.setBold(nameAcceptedStyle, true);
+    }
+
+
+    private void appendMessage(String message, String style) {
+        try {
+            String timeStamp = new SimpleDateFormat("HH:mm:ss").format(new Date());
+            doc.insertString(doc.getLength(), "[" + timeStamp + "] " + message + "\n", messageArea.getStyle(style));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     private String getName() {
@@ -75,11 +123,15 @@ public class ChatClient {
                 var line = in.nextLine();
                 if (line.startsWith("SUBMITNAME")) {
                     out.println(getName());
+                    appendMessage("Please enter your screen name:", "SubmitName");
                 } else if (line.startsWith("NAMEACCEPTED")) {
                     this.frame.setTitle("Chatter - " + line.substring(13));
                     textField.setEditable(true);
+                    appendMessage("Welcome! Your name has been accepted.", "NameAccepted");
+                } else if (line.startsWith("SYSTEM")) {
+                    appendMessage(line.substring(7), "System");
                 } else if (line.startsWith("MESSAGE")) {
-                    messageArea.append(line.substring(8) + "\n");
+                    appendMessage(line.substring(8), "UserMessage");
                 }
             }
         } finally {
